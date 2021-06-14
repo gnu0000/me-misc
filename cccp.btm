@@ -1,0 +1,28 @@
+@echo off
+setlocal
+
+for %x in (*.lst) gosub process %x
+
+endlocal
+quit
+
+
+:process [file]
+   echo processing %file
+   set dirname=%@NAME[%file]
+   mkdir %dirname
+   set h=%@fileopen[%file,r]
+:nextspec
+   set spec=%@fileread[%h]
+   set filename=%@filename[%spec]
+
+   if "%spec" eq "**EOF**" goto closefile
+
+   echo copying %spec to %dirname
+   copy /q %spec %dirname
+   goto nextspec
+
+:closefile
+   %@fileclose[%h]
+   echo .
+return
