@@ -35,7 +35,7 @@ sub InitialStats {
 }
 
 sub InitIgnoreList {
-   return ((".." => 1, "." => 1), map{$_ => 1} ArgGetAll("ignore"));
+   return ((".." => 1, "." => 1, ".git" => 1), map{$_ => 1} ArgGetAll("ignore"));
 }
 
 sub ProcessDir {
@@ -103,11 +103,14 @@ WHERE: [options] is 0 or more of:
    -type=type .... Show filecount & linecount with this file extension.
    -ignore=dir ... Ignore files in this subtree.
    -all .......... Show filecount for all file types.
+   -showdirs ..... Show all dirs. For grepping, etc...
+   -showfiles .... Show all files. For grepping, etc...
    -help ......... Show this help.
 
    If no types are specified, a default type list is used. The type option
      may be used multiple times.
-   The ignore option may be used multiple times.
+   The ignore option may be used multiple times. the dirs: ., .. and .git
+     are always ignored
 
 EXAMPLES:
    CountLines.pl .\projdir
