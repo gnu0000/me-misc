@@ -19,14 +19,14 @@ my (%TYPES, %IGNORE);
 
 MAIN:
    $| = 1;
-   ArgBuild("*^type= *^ignore= *^help *^showdirs *^showfiles ?");
+   ArgBuild("*^type= *^ignore= *^each *^showdirs *^showfiles *^help ?");
    ArgParse(@ARGV) or die ArgGetError();
    Usage() if ArgIsAny("help", "?") || !ArgIs("");
 
    %TYPES  = InitialTypes();
    %IGNORE = InitIgnoreList();
+   ProcessEach(ArgGet()) if ArgIs("each");
    ProcessDir(ArgGet());
-   Report();
    exit(0);
 
 
@@ -40,12 +40,28 @@ sub InitIgnoreList {
    return ((".." => 1, "." => 1), map{$_ => 1} ArgGetAll("ignore"));
 }
 
+sub ProcessEach {
+   my ($dir) = @_;
+
+   opendir(my $dh, $dir) or die "cant open dir '$dir'!";
+   my @all = grep {-d "$dir\\$_" && !$IGNORE{$_}} readdir($dh);
+   closedir($dh);
+   map{ProcessDir("$dir\\$_")} @all;
+}
 
 sub ProcessDir {
    my ($dir) = @_;
 
+   %COUNTS = (size=>0, dirs=>0, files=>0, matches=>0);
+   ExamineDir($dir);
+   Report($dir);
+}
+
+sub ExamineDir {
+   my ($dir) = @_;
+
    $COUNTS{dirs}++;
-   printf "processing dir: $dir\n" if ArgIs("showdirs");
+   printf "examining dir: $dir\n" if ArgIs("showdirs");
 
    opendir(my $dh, $dir) or die "cant open dir '$dir'!";
    my @all = readdir($dh);
@@ -53,17 +69,17 @@ sub ProcessDir {
 
    foreach my $entry (@all) {
       my $spec = "$dir\\$entry";
-      ProcessDir($spec) if -d $spec && !$IGNORE{$entry};
-      ProcessFile($spec) if -f $spec;
+      ExamineDir($spec) if -d $spec && !$IGNORE{$entry};
+      ExamineFile($spec) if -f $spec;
    }
 }
 
 
-sub ProcessFile {
+sub ExamineFile {
    my ($spec) = @_;
 
    $COUNTS{files}++;
-   printf "processing file: $spec\n" if ArgIs("showfiles");
+   printf "examining file: $spec\n" if ArgIs("showfiles");
 
    my ($ext) = $spec =~ /\.(\w+)$/;
    $ext = defined $ext ? $ext : "none";
@@ -76,10 +92,13 @@ sub ProcessFile {
 
 # 21.20 GB (2222,242,234,234) in 5,321 files, 43 dirs
 sub Report {
+   my ($dir) = @_;
+
+   my ($nm) = $dir =~ /([^\\]+)$/;
    my $ss = SizeString($COUNTS{size});
    my $nf = NumberFormat($COUNTS{size});
    my $ct = $COUNTS{matches} != $COUNTS{files} ? "$COUNTS{matches} of $COUNTS{files}" : "$COUNTS{matches}";
-   printf "$ss ($nf) in $ct files, $COUNTS{dirs} dirs\n";
+   printf ("%-12s: $ss ($nf) in $ct files, $COUNTS{dirs} dirs\n", $nm);
 }
 
 
@@ -104,6 +123,9 @@ USAGE: du.pl [options] dir
 WHERE: [options] is 0 or more of:
    -type=type .... Show size of files with this file extension.
    -ignore=dir ... Ignore files in this subtree.
+   -each ......... Show sizes for each top level dir.
+   -showfiles .... Show dirs being examined.
+   -showdirs ..... Show files being examined.
    -help ......... Show this help.
 
    If no types are specified, all files are included. The type option
