@@ -8,6 +8,7 @@ use strict;
 use File::Basename;
 use lib dirname(__FILE__);
 use lib dirname(__FILE__) . "/lib";
+use List::Util    qw(max min);
 use Gnu::ArgParse;
 use Gnu::MiscUtil qw(SizeString);
 use Gnu::FileUtil qw(SlurpFile SpillFile);
@@ -15,6 +16,7 @@ use Gnu::Template qw(Template Usage);
 
 my %COUNTS = (size=>0, dirs=>0, files=>0, matches=>0);
 my (%TYPES, %IGNORE);
+my $DIRLEN = 16;
 
 
 MAIN:
@@ -46,6 +48,11 @@ sub ProcessEach {
    opendir(my $dh, $dir) or die "cant open dir '$dir'!";
    my @all = grep {-d "$dir\\$_" && !$IGNORE{$_}} readdir($dh);
    closedir($dh);
+
+   my $dirlen = 0;
+   map{$dirlen = max($dirlen, length $_)} @all;
+   $DIRLEN = $dirlen;
+
    map{ProcessDir("$dir\\$_")} @all;
 }
 
@@ -98,7 +105,7 @@ sub Report {
    my $ss = SizeString($COUNTS{size});
    my $nf = NumberFormat($COUNTS{size});
    my $ct = $COUNTS{matches} != $COUNTS{files} ? "$COUNTS{matches} of $COUNTS{files}" : "$COUNTS{matches}";
-   printf ("%-12s: $ss ($nf) in $ct files, $COUNTS{dirs} dirs\n", $nm);
+   printf ("%-*s: $ss ($nf) in $ct files, $COUNTS{dirs} dirs\n", $DIRLEN, $nm);
 }
 
 
