@@ -1,0 +1,13 @@
+setlocal
+@echo off
+
+set i=0
+:TOP
+set spec=%@LINE[shorts.lst,%i]
+if "%spec" eq "**EOF**" goto END
+ffmpeg -i %spec -c:v libvpx -crf 10 -b:v 1M -c:a libvorbis %@NAME[%spec].webm
+set i=%@EVAL[%i+1]
+goto TOP
+
+:END
+endlocal

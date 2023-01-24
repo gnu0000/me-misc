@@ -1,0 +1,4 @@
+for /r %R in (.svn) do if exist %R (echo /s /q "%R")
+for /r %R in (.fit) do if exist %R (echo /s /q "%R")
+for /r %R in (node_modules) do if exist %R (rd /s /q "%R")
+

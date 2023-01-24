@@ -1,0 +1,120 @@
+@echo off
+rem **********************************************
+rem  Zips source code for a source tree
+rem  zip is put in the bkup directory
+rem **********************************************
+
+setlocal
+
+if %# gt 0 goto ShowHelp
+
+if not exist bkup mkdir bkup
+
+gosub SetBase
+gosub SetBranch
+gosub SetName
+gosub SetExcludes
+gosub ZipFiles
+gosub MoveZip
+
+goto End
+
+
+:SetBase
+   set base=%_CWP
+
+   do forever
+      set idx=%@INDEX[%base,\]
+      if %idx == -1 leave
+      set idx=%@eval[%idx+1]
+      set base=%@instr[%idx,,%base]
+   enddo
+return
+
+
+:SetBranch
+   set branch=%@SUBSTR[%@EXECSTR[git branch | grep \*],2]
+   if "%branch" != "" set branch=_%branch
+return
+
+
+:SetName
+   set tim=%_year-%_month-%_day
+   set charval=96
+
+   :loop1
+      set charval=%@eval[%charval+1]
+      set name=%base%%branch%%tim%%@char[%charval].ZIP
+      if not exist %name goto next1
+      echo %name exists already
+   goto loop1
+
+   :next1
+      if not exist bkup\%name goto break1
+      echo bkup\%name exists already
+   goto loop1
+
+   :break1
+return
+
+
+:SetExcludes
+      iff not exist ".zipignore" then
+         echo ".zipignore" does not exist
+         set excludes=zipproj.btm \*.zip \*.err \*.exe \*.war Debug/\* Release/\* *bkup/\* *node_modules/\*
+      else
+         echo ".zipignore" does exist
+         set fh=%@fileopen[.zipignore,r]
+         set excludes=
+         set line=
+         do forever
+            set line=%@fileread[%fh]
+            if "%line" == "**EOF**" leave
+            set excludes=%excludes %line
+            echo .zipignore line: %line
+         enddo
+         echo %@fileclose[%fh]
+         echo excludes set to %excludes
+      endiff
+return
+
+
+:ZipFiles
+   echo Zipping to %name
+   echo zip -r %name * -x %excludes
+   zip -r %name * -x %excludes
+return
+
+
+:MoveZip
+   move /D %name bkup
+return
+
+
+:ShowHelp
+echo zipproj.btm  -  zip files in the current dir tree   
+echo .
+echo This will automatically generate a unique zip filename using the dir name,
+echo git name if applicable, and a suffix character and will move the zip to
+echo a directory named "bkup"
+echo .
+echo .
+echo if a file names .zipignore exists in the current directory, it is used as
+echo an exclude list. Here is an example:
+echo    zipproj.btm 
+echo    \*.zip
+echo    *bkup/\*
+echo    *node_modules/\*
+echo If no .zipignore is found, the default list is used:
+echo    zipproj.btm 
+echo    \*.zip 
+echo    \*.err 
+echo    \*.exe 
+echo    \*.war 
+echo    Debug/\* 
+echo    Release/\* 
+echo    *bkup/\* 
+echo    *node_modules/\*
+
+:End
+   endlocal

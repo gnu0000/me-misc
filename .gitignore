@@ -4,3 +4,6 @@ dist/
 bkup/
 *.bak
 *.zip
+*.lst
+ex.js
+

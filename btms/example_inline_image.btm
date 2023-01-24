@@ -1,0 +1,41 @@
+rem a -Xc50 -+ ---n .jpg
+rem a -Xc50 -+ ---n AddlServIcon.jpg
+rem a -Xc50 -+ ---n AdjustmentsIcon.jpg
+rem a -Xc50 -+ ---n BudgetIcon.jpg
+rem a -Xc50 -+ ---n DebugIcon.jpg
+rem a -Xc50 -+ ---n DeliveryIcon.jpg
+rem a -Xc50 -+ ---n EstimateIcon.jpg
+rem a -Xc50 -+ ---n PastDueIcon.jpg
+rem a -Xc50 -+ ---n PaymentArrangementIcon.jpg
+rem a -Xc50 -+ ---n SupplyIcon.jpg
+rem a -Xc50 -+ ---n TaxFeeIcon.jpg
+rem 
+rem base64 AddlServIcon.png           | tr -d '\n'
+rem base64 .png                       | tr -d '\n'
+rem base64 AddlServIcon.png           | tr -d '\n'
+rem base64 AdjustmentsIcon.png        | tr -d '\n'
+rem base64 BudgetIcon.png             | tr -d '\n'
+rem base64 DebugIcon.png              | tr -d '\n'
+rem base64 DeliveryIcon.png           | tr -d '\n'
+rem base64 EstimateIcon.png           | tr -d '\n'
+rem base64 PastDueIcon.png            | tr -d '\n'
+rem base64 PaymentArrangementIcon.png | tr -d '\n'
+rem base64 SupplyIcon.png             | tr -d '\n'
+rem base64 TaxFeeIcon.png             | tr -d '\n'
+
+setlocal
+echo off
+
+set out=style.css
+for %file in (*.jpg) gosub AddIt %file
+
+:AddIt 
+   echo adding %file
+   set base=%@name[%file]
+   echo .%base { background-image: url(data:image/png;base64, >> %out
+   a -Xc50 -+ ---n %file
+   base64 %base.png | tr -d '\n' >> %out
+   echo ); } >> style.css
+return
+
+endlocal;

@@ -1,0 +1,12 @@
+@echo off
+@setlocal
+
+set d=zzz
+set h=%@fileopen[%1,r]
+set d=%@filereadb[%h,4]
+set z=%@fileclose[%h]
+
+if "%d" == "0 0 0 0" unlink %1
+
+
+@endlocal

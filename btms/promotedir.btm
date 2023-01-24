@@ -1,0 +1,18 @@
+@echo off
+@setlocal
+
+set dir=%1
+for %file in (%dir\*) gosub promote %file
+goto end
+
+:promote
+   set filename=%@FILENAME[%file]
+   rem echo dir is  "%dir"
+   rem echo file is "%file"
+   rem echo filename is "%filename"
+   rem echo move "%file"  "%dir-%filename"
+   move "%file"  "%dir-%filename"
+return
+
+:end
+@endlocal

@@ -1,0 +1,4 @@
+@echo off
+set dir=%_cwd
+input /e %%dir
+cd %dir

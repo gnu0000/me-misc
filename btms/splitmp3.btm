@@ -1,0 +1,34 @@
+@echo off
+setlocal
+
+set in=%1
+set name=%@name[%in]
+set ext=%@ext[%in]
+set part=0
+set length=%2
+set overlap=%3
+if "%in" == "" goto usage
+if "%length" == "" set length=600
+if "%overlap" == "" set overlap=3
+echo Splitting %in into segments of %length seconds with an overlap of %overlap seconds
+
+:loop
+set start=%@eval[%part * %length]
+if %start != 0 set start=%@eval[%start - 3]
+set part=%@inc[%part]
+set out=%name-%@formatn[03.0,%part].%ext
+echo ffmpeg -ss %start -i %in -c copy -t %length %out
+ffmpeg -y -hide_banner -loglevel error -ss %start -i %in -c copy -t %length %out
+if %part GT 40 goto end
+goto loop
+
+:usage
+echo usage: splitmp3.btm  filename length [overlap]
+echo .
+echo filename .. The mp3 file to split up
+echo length .... The length in seconds of each part
+echo overlap ... The overlap in time between parts (default is 3)
+
+:end
+echo done
+endlocal
