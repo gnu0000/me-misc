@@ -2,7 +2,6 @@
 #
 # Craig Fitzgerald
 
-#use lib '..\lib';
 use warnings;
 use strict;
 use Compress::Zlib;

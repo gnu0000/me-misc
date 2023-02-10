@@ -123,7 +123,7 @@ sub NumberFormat
 __DATA__
 
 [usage]
-du.pl  -  Recursively count source code lines in a directory tree.
+du.pl  -  Recursively count the total size of files of a particular type
 
 USAGE: du.pl [options] dir
 
