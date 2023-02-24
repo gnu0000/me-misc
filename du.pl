@@ -5,6 +5,7 @@
 
 use warnings;
 use strict;
+use feature 'state';
 use File::Basename;
 use lib dirname(__FILE__);
 use lib dirname(__FILE__) . "/lib";
@@ -14,21 +15,19 @@ use Gnu::MiscUtil qw(SizeString);
 use Gnu::FileUtil qw(SlurpFile SpillFile);
 use Gnu::Template qw(Template Usage);
 
-my %COUNTS = (size=>0, dirs=>0, files=>0, matches=>0);
 my (%TYPES, %IGNORE);
 my $DIRLEN = 16;
 
 
 MAIN:
    $| = 1;
-   ArgBuild("*^type= *^ignore= *^each *^showdirs *^showfiles *^help ?");
+   ArgBuild("*^type= *^ignore= *^each *^showdirs *^showfiles ^os ^oc *^help ?");
    ArgParse(@ARGV) or die ArgGetError();
    Usage() if ArgIsAny("help", "?") || !ArgIs("");
 
    %TYPES  = InitialTypes();
    %IGNORE = InitIgnoreList();
-   ProcessEach(ArgGet()) if ArgIs("each");
-   ProcessDir(ArgGet());
+   ProcessTopDir(ArgGet());
    exit(0);
 
 
@@ -42,7 +41,8 @@ sub InitIgnoreList {
    return ((".." => 1, "." => 1), map{$_ => 1} ArgGetAll("ignore"));
 }
 
-sub ProcessEach {
+
+sub ProcessTopDir {
    my ($dir) = @_;
 
    opendir(my $dh, $dir) or die "cant open dir '$dir'!";
@@ -54,58 +54,88 @@ sub ProcessEach {
    $DIRLEN = $dirlen;
 
    map{ProcessDir("$dir\\$_")} @all;
+   Report($dir);
 }
+
 
 sub ProcessDir {
    my ($dir) = @_;
 
-   %COUNTS = (size=>0, dirs=>0, files=>0, matches=>0);
-   ExamineDir($dir);
-   Report($dir);
+   my $counts = {size=>0, dirs=>0, files=>0, matches=>0};
+   ExamineDir($dir, $counts);
+   Report($dir, $counts);
 }
 
-sub ExamineDir {
-   my ($dir) = @_;
 
-   $COUNTS{dirs}++;
+sub ExamineDir {
+   my ($dir, $counts) = @_;
+
+   $counts->{dirs}++;
    printf "examining dir: $dir\n" if ArgIs("showdirs");
 
-   opendir(my $dh, $dir) or die "cant open dir '$dir'!";
+   opendir(my $dh, $dir) or die "can't open dir '$dir'!";
    my @all = readdir($dh);
    closedir($dh);
 
    foreach my $entry (@all) {
       my $spec = "$dir\\$entry";
-      ExamineDir($spec) if -d $spec && !$IGNORE{$entry};
-      ExamineFile($spec) if -f $spec;
+      ExamineDir($spec, $counts) if -d $spec && !$IGNORE{$entry};
+      ExamineFile($spec, $counts) if -f $spec;
    }
 }
 
 
 sub ExamineFile {
-   my ($spec) = @_;
+   my ($spec, $counts) = @_;
 
-   $COUNTS{files}++;
+   $counts->{files}++;
    printf "examining file: $spec\n" if ArgIs("showfiles");
 
    my ($ext) = $spec =~ /\.(\w+)$/;
    $ext = defined $ext ? $ext : "none";
    return unless $TYPES{$ext} || $TYPES{all};
 
-   $COUNTS{matches}++;
-   $COUNTS{size} += -s $spec;
+   $counts->{matches}++;
+   $counts->{size} += -s $spec;
 }
 
 
 # 21.20 GB (2222,242,234,234) in 5,321 files, 43 dirs
 sub Report {
-   my ($dir) = @_;
+   my ($dir, $counts) = @_;
+
+   state $totals = {size=>0, dirs=>0, files=>0, matches=>0};
+   state $lines  = [];
+
+   my $ordered = ArgIsAny("os", "oc"); # wait until we get the full list
+
+   if (!$counts && $ordered) {
+      my $key = ArgIs("os") ? "size" : "matches";
+      my @sortedLines = sort {$a->{$key} <=> $b->{$key}} @{$lines};
+      map {print $_->{line}} @sortedLines;
+   }
+   if (!$counts) {
+      print "------\n" if ArgIs("each") || $ordered;
+      print ReportLine($dir, $totals);
+      return;
+   }
+
+   my $line = ReportLine($dir, $counts);
+   push(@{$lines}, {size=>$counts->{size}, matches=>$counts->{matches}, dir=>$dir, line=>$line});
+   map {$totals->{$_} += $counts->{$_}} (qw(size dirs files matches));
+
+   print $line unless $ordered || !ArgIs("each");
+}
+
+
+sub ReportLine {
+   my ($dir, $counts) = @_;
 
    my ($nm) = $dir =~ /([^\\]+)$/;
-   my $ss = SizeString($COUNTS{size});
-   my $nf = NumberFormat($COUNTS{size});
-   my $ct = $COUNTS{matches} != $COUNTS{files} ? "$COUNTS{matches} of $COUNTS{files}" : "$COUNTS{matches}";
-   printf ("%-*s: $ss ($nf) in $ct files, $COUNTS{dirs} dirs\n", $DIRLEN, $nm);
+   my $ss = SizeString($counts->{size});
+   my $nf = NumberFormat($counts->{size});
+   my $ct = ArgIs("type") ? sprintf ("%4d of %4d", $counts->{matches}, $counts->{files}) : sprintf ("%4d", $counts->{matches});
+   return sprintf ("%-*s: %-*s (%*s) in $ct files, %*d dirs\n", $DIRLEN, $nm, 10, $ss, 11, $nf, 4, $counts->{dirs});
 }
 
 
@@ -133,6 +163,8 @@ WHERE: [options] is 0 or more of:
    -each ......... Show sizes for each top level dir.
    -showfiles .... Show dirs being examined.
    -showdirs ..... Show files being examined.
+   -os ........... for -each option, list dirs by total size
+   -oc ........... for -each option, list dirs by file count
    -help ......... Show this help.
 
    If no types are specified, all files are included. The type option
