@@ -135,7 +135,7 @@ sub ReportLine {
    my $ss = SizeString($counts->{size});
    my $nf = NumberFormat($counts->{size});
    my $ct = ArgIs("type") ? sprintf ("%4d of %4d", $counts->{matches}, $counts->{files}) : sprintf ("%4d", $counts->{matches});
-   return sprintf ("%-*s: %-*s (%*s) in $ct files, %*d dirs\n", $DIRLEN, $nm, 10, $ss, 11, $nf, 4, $counts->{dirs});
+   return sprintf ("%-*s: %-*s (%*s) $ct files,%*d dirs\n", $DIRLEN, $nm, 10, $ss, 15, $nf, 4, $counts->{dirs});
 }
 
 
