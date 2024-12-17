@@ -41,15 +41,16 @@ my $DEFAULT = ConAttr();
 
 MAIN:
    $| = 1;
-   ArgBuild("*^charset *^colors *^setcolor *^palette *^example ?");
+   ArgBuild("*^charset *^colors *^setcolor *^palette *^example *^list *^help ?");
    ArgParse(@ARGV) or die ArgGetError();
-   Usage () if ArgIs("help") || !ArgIsAny(qw{palette setcolor charset colors example});
+   Usage () if ArgIs("help") || ArgIs("?") ||!ArgIsAny(qw{palette setcolor charset colors example list});
 
    SetPalette ()  if ArgIs("palette" );
    SetColor   ()  if ArgIs("setcolor");
    ShowCharset()  if ArgIs("charset" );
    ShowColors ()  if ArgIs("colors"  );
    Example    ()  if ArgIs("example" );
+   Example    ()  if ArgIs("list" );
    exit(0);
 
 
