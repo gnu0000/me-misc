@@ -4,111 +4,43 @@
 #  print "\x1b]4;14;rgb:c0/c0/ef\x07"; # B0 0B
 #  Craigf Fitzgerald
 
-use Gnu::Console qw(:ALL);
+use warnings;
+use strict;
+use File::Basename;
+use lib dirname(__FILE__) . "/lib";
+use Gnu::Color   qw(:ALL);
 use Gnu::ArgParse;
 use Gnu::Template  qw(Usage);
-use Gnu::DebugUtil   qw(_StackLocation _StkStr DumpRef);
-
-
-my @COLORINFO = (
-   {name => "black"       , idx => $FG_BLACK       , palette => 0 },
-   {name => "blue"        , idx => $FG_BLUE        , palette => 4 },
-   {name => "green"       , idx => $FG_GREEN       , palette => 2 },
-   {name => "cyan"        , idx => $FG_CYAN        , palette => 6 },
-   {name => "red"         , idx => $FG_RED         , palette => 1 },
-   {name => "magenta"     , idx => $FG_MAGENTA     , palette => 5 },
-   {name => "brown"       , idx => $FG_BROWN       , palette => 3 },
-   {name => "lightgray"   , idx => $FG_LIGHTGRAY   , palette => 7 },
-   {name => "gray"        , idx => $FG_GRAY        , palette => 8 },
-   {name => "lightblue"   , idx => $FG_LIGHTBLUE   , palette => 12},
-   {name => "lightgreen"  , idx => $FG_LIGHTGREEN  , palette => 10},
-   {name => "lightcyan"   , idx => $FG_LIGHTCYAN   , palette => 14},
-   {name => "lightred"    , idx => $FG_LIGHTRED    , palette => 9 },
-   {name => "lightmagenta", idx => $FG_LIGHTMAGENTA, palette => 13},
-   {name => "yellow"      , idx => $FG_YELLOW      , palette => 11},
-   {name => "white"       , idx => $FG_WHITE       , palette => 15},
-);
-
-my %NAMEMAP = map{$_->{name} => $_} @COLORINFO;
-
-# Microsoft's names, not mine
-my $CSI = "\x1b[";  # CSI  means  Control Sequence Introducer
-my $OSC = "\x1b]";  # OSC  means  Operating system command
-my $ST  = "\x07";
-
-my $DEFAULT = ConAttr();
 
 
 MAIN:
    $| = 1;
-   ArgBuild("*^charset *^colors *^setcolor *^palette *^example *^list *^help ?");
+   ArgBuild("*^charset *^colors *^setcolor *^palette *^export= *^import= *^soft *^example *^list *^test *^help *^debug ?");
    ArgParse(@ARGV) or die ArgGetError();
-   Usage () if ArgIs("help") || ArgIs("?") ||!ArgIsAny(qw{palette setcolor charset colors example list});
-
-   SetPalette ()  if ArgIs("palette" );
-   SetColor   ()  if ArgIs("setcolor");
-   ShowCharset()  if ArgIs("charset" );
-   ShowColors ()  if ArgIs("colors"  );
-   Example    ()  if ArgIs("example" );
-   Example    ()  if ArgIs("list" );
+   Usage () if ArgIs("help") || ArgIs("?") || scalar @ARGV < 1;
+   Go();
    exit(0);
 
 
-# -color blue on black
-# -color green
-# -color on gray
-#
-sub SetColor {   
-   my $curr  = ConAttr();
-   my @parts = ArgGetAll();
-
-   if (scalar @parts == 3) {
-      die "invalid params" unless $parts[1] =~ /^on/i;
-      $fg = ColorIndex($parts[0]);
-      $bg = ColorIndex($parts[2]) << 4;
-      ConAttr($fg | $bg);
-   }
-   if (scalar @parts == 2) {
-      die "invalid params" unless $parts[0] =~ /^on/i;
-      $fg = $curr & 0x0f;
-      $bg = ColorIndex($parts[1]) << 4;
-      ConAttr($fg | $bg);
-   }
-   if (scalar @parts == 1) {
-      $fg = ColorIndex($parts[0]);
-      $bg = $curr & 0xf0;
-      ConAttr($fg | $bg);
-   }
-}
-
-# -palette red ff/66/22
-#
-sub SetPalette {
-   my ($color, $rgb) = ArgGetAll();
-   my $curr  = ConAttr();
-
-   die "unknown color $color" unless exists($NAMEMAP{lc $color});
-   my $spec = $NAMEMAP{lc $color};
-   die "invalid color spec" unless $rgb =~ /^[0-9a-f]{2}\/[0-9a-f]{2}\/[0-9a-f]{2}/i;
-
-   print $OSC . "4;$spec->{palette};rgb:$rgb" . $ST;
-
-   $bg = $curr & 0xf0;
-   ConAttr($spec->{idx} | $bg);
-   print "Palette for $color changed to $rgb\n";
-   ConAttr($curr);
+sub Go {
+   return ShowCharset()             if ArgIs("charset");
+   return ShowColors ()             if ArgIs("colors" );
+   return ListColors ()             if ArgIs("list"   );
+   return SetPalette (ArgGetAll())  if ArgIs("palette");
+   return ExportPal  (ArgGetAll())  if ArgIs("export");
+   return ImportPal  (ArgGetAll())  if ArgIs("import");
+   return SoftPalette()             if ArgIs("soft");
+   return SetColor   (join(" ", ArgGetAll()));
 }
 
 
 sub ShowCharset {
-   my $curr = ConAttr();
-
    # header labels
-   ConAttr($FG_LIGHTGRAY | $BG_BLACK);
+   SetColor();
    print(" " x 4);
    for my $x (0..15) {printf(" %2.2X ", $x)}
    print("\n");
-   ConAttr($FG_GRAY | $BG_BLACK);
+   SetColor("gray on black");
 
    # box top
    print(" " x 4 . safec(201));
@@ -117,24 +49,22 @@ sub ShowCharset {
 
    # box body
    for my $y (0..15) {
-
-      ConAttr($FG_LIGHTGRAY | $BG_BLACK);
+      SetColor();
       printf(" %2.2X ", $y * 16);
-      ConAttr($FG_GRAY | $BG_BLACK);
+      SetColor("gray on black");
       print(safec(186));
 
       for my $x (0..15) {
-         ConAttr($FG_WHITE | $BG_BLACK);
+         SetColor("white on black");
          print(" " . safec($y*16+$x));
-         ConAttr($FG_GRAY | $BG_BLACK);
+         SetColor("gray on black");
          print(" " . safec($x==15 ? 186 : 179));
       }
       printf("\n    " . safec(186));
       for my $x (0..15) {
-         #printf("%3.3d" . safec($x==15 ? 186 : 179), $y*16+$x)
-         ConAttr($FG_MAGENTA | $BG_BLACK);
+         SetColor("lightmagenta on black");
          printf("%3.3d", $y*16+$x);
-         ConAttr($FG_GRAY | $BG_BLACK);
+         SetColor("gray on black");
          printf(safec($x==15 ? 186 : 179));
       }
      print("\n");
@@ -143,15 +73,14 @@ sub ShowCharset {
    printf("    " . safec(200));
    for my $x (0..15) {printf(safec(205) x 3 . safec($x==15 ? 188 : 207))}
    print("\n");
-   ConAttr($curr);
+   SetColor();
 }
 
 
 sub ShowColors { 
-   my $curr = ConAttr();
    # header labels
    print(" " x 4);
-   for my $x (0..15) {printf(" %2.2X ", $x)}
+   for my $x (0..15) {printf(" %2.2X ", $x * 16)}
    print("\n");
 
    # box top
@@ -161,21 +90,21 @@ sub ShowColors {
 
    # box body
    for my $y (0..15) {
-      ConAttr($curr);
-      printf(" %2.2X ", $y * 16);
+      SetColor();
+      printf(" %2.2X ", $y);
       print(safec(186));
 
       for my $x (0..15) {
-         ConAttr($y * 16 + $x);
+         SetColor(sprintf("%2.2x", $y + $x * 16));
          print " @ ";
-         ConAttr($curr);
+         SetColor();
          print(safec($x==15 ? 186 : 179));
       }
       printf("\n    " . safec(186));
       for my $x (0..15) {
-         ConAttr($y * 16 + $x);
+         SetColor(sprintf("%2.2x", $y + $x * 16));
          print "   ";
-         ConAttr($curr);
+         SetColor();
          printf(safec($x==15 ? 186 : 179));
       }
      print("\n");
@@ -184,26 +113,20 @@ sub ShowColors {
    printf("    " . safec(200));
    for my $x (0..15) {printf(safec(205) x 3 . safec($x==15 ? 188 : 207))}
    print("\n");
-   ConAttr($curr);
+   SetColor();
 }
 
 
-sub Example {
+sub ListColors {
    my $curr = ConAttr();
-   my $bg   = $curr & \xFF00;
-   
-   foreach my $spec (@COLORINFO) {
-      ConAttr($spec->{idx} | $bg);
-      print "This foreground color is $spec->{name}\n";
+   my $bg   = $curr & 0xF0;
+
+   foreach my $idx (0..15) {
+      SetColorByIndex($idx);
+      my $name = ColorSpec($idx)->{name};
+      printf ("[%x] This foreground color is $name\n", $idx);
    }
-   ConAttr($curr);
-}
-
-sub ColorIndex {
-   my ($name) = @_;
-
-   die "unknown color $name" unless exists($NAMEMAP{lc $name});
-   return $NAMEMAP{lc $name}->{idx};
+   SetColor();
 }
 
 sub safec {
@@ -213,6 +136,31 @@ sub safec {
    return $bad{$i} ? " " : sprintf("%c", $i);
 }
 
+sub ExportPal {
+   my $filespec = ArgGet("export");
+   open (my $fh, ">", $filespec) or die "Can't open '$filespec'";
+   my $palette = GetPalette();
+   print $fh $palette;
+   close($fh);
+   print "Palette exported to '$filespec'\n";
+}
+
+sub ImportPal {
+   my $filespec = ArgGet("import");
+   open (my $fh, "<", $filespec) or die "Can't open '$filespec'";
+   my $line = <$fh>;
+   chomp $line;
+   SetPalette($line);
+   close($fh);
+   print "Palette imported\n";
+}
+
+sub SoftPalette {
+   SetPalette("9:8b/a6/e0,a:97/e0/8b,b:8b/e0/d9,c:e0/8b/95,d:da/8b/e0,e:e0/d7/8b");
+   SetColor("09");
+
+
+}
 
 __DATA__
 
@@ -224,9 +172,10 @@ Usage: console.pl [options]
 Where options is one of:
    -charset ........................ Show the charset for this codepage
    -colors ......................... Show the current fg / bg colors
-   -example ........................ Show example fg colors on current bg
+   -list ........................... Show example fg colors on current bg
    -setcolor <fg> on <bg> .......... Set curtrent colors
-   -palette  <color> <r>/<g>/<b> ... Adjust the color palette
+   -palette  <color> <r>/<g>/<b> ... Adjust the color palette (hex vals)
+   -soft ........................... Adjust the bright colors to be softer
 
 Examples:
    Show the current character set
@@ -242,7 +191,9 @@ Examples:
       console.pl  -setcolor gray on black
       console.pl  -setcolor gray           (set fg only)
       console.pl  -setcolor on black       (set bg only)
+      console.pl  -setcolor B0             (hex bg/fg)
    
    Change a palette color
-      console.pl  -palette red ff/66/22
+      console.pl  -palette brightred ff/66/22
+      console.pl  -palette brightblue default 
 [fini]

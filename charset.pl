@@ -1,19 +1,31 @@
+#!perl
+#
+# charset.pl  - show ascii chars or console colors
+# Craig Fitzgerald
 
-use Time::HiRes qw(sleep usleep);
-#use lib "c:/projects/me/Gnu/lib";
 use Gnu::Console qw(:ALL);
+use Gnu::ArgParse;
+
+# print "\x1b]4;14;rgb:c0/c0/ef\x07"; # B0 0B
+
+#ConAttr($FG_LIGHTCYAN | $BG_BLACK);
+
+my $DEFAULT = ConAttr();
 
 MAIN:
    $| = 1;
-
+   ArgBuild("*^colors");
+   ArgParse(@ARGV) or die ArgGetError();
    my $attr = ConAttr();
-
    ConAttr($FG_GRAY | $BG_BLACK);
-   DrawBox();
-   ConAttr($attr);
+   ArgIs("colors") ? DrawColorBox() : DrawCharBox();
+   #ConAttr($attr);
+   #ConAttr($FG_LIGHTGRAY | $BG_BLACK);
+   d();
 
 
-sub DrawBox {
+
+sub DrawCharBox {
    # header labels
    ConAttr($FG_LIGHTGRAY | $BG_BLACK);
    print(" " x 4);
@@ -48,17 +60,58 @@ sub DrawBox {
          ConAttr($FG_GRAY | $BG_BLACK);
          printf(c($x==15 ? 186 : 179));
       }
-     #last if $y==15;
-     #printf("\n    %c", $y==15 ? 200 : 199);
-     #for my $x (0..15) {printf(c(196) x 3 . c($x==15 ? 182 : 197))}
      print("\n");
    }
-
    #box bottom
    printf("    " . c(200));
    for my $x (0..15) {printf(c(205) x 3 . c($x==15 ? 188 : 207))}
    print("\n");
 }
+
+
+sub DrawColorBox {
+   # header labels
+   d();
+   print(" " x 4);
+   for my $x (0..15) {printf(" %2.2X ", $x)}
+   print("\n");
+   d();
+
+   # box top
+   print(" " x 4 . c(201));
+   for my $x (0..15) {printf(c(205) x 3 . c($x == 15 ? 187 : 209))}
+   print("\n");
+
+   # box body
+   for my $y (0..15) {
+
+      d();
+      printf(" %2.2X ", $y * 16);
+      d();
+      print(c(186));
+
+      for my $x (0..15) {
+         ConAttr($y * 16 + $x);
+         print " @ ";
+         d();
+         print(c($x==15 ? 186 : 179));
+      }
+
+      printf("\n    " . c(186));
+      for my $x (0..15) {
+         ConAttr($y * 16 + $x);
+         print "   ";
+         d();
+         printf(c($x==15 ? 186 : 179));
+      }
+     print("\n");
+   }
+   #box bottom
+   printf("    " . c(200));
+   for my $x (0..15) {printf(c(205) x 3 . c($x==15 ? 188 : 207))}
+   print("\n");
+}
+
 
 sub c {
    my ($i) = @_;
@@ -68,7 +121,9 @@ sub c {
    return $bad{$i} ? " " : sprintf("%c", $i);
 }
 
-
+sub d {
+   ConAttr($DEFAULT);
+}
 
 
 

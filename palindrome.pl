@@ -2,13 +2,13 @@
 #
 use bignum;
 
-my $TRIES = 10000;
-my $SHOW = 0;
+my $TRIES = 2000;
+my $SHOW  = 0;
 my $SHOW2 = 0;
 my $SHOW3 = 1;
 
 MAIN:
-   GenPalindromes(1,5000);
+   GenPalindromes(1,2000);
    exit (0);
 
 
